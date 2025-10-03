@@ -97,6 +97,18 @@ func (s *MCPServer) Run() error {
 
 	srv.AddTool(advisorTool, s.conversationalPricingAdvisorTool)
 
+	// Register historical savings analysis tool
+	historicalTool := mcp.NewTool("analyze_historical_savings",
+		mcp.WithDescription("Analyze historical orders to show potential savings from different pricing strategies"),
+		mcp.WithString("start_date", mcp.Required(), mcp.Description("Start date for analysis (YYYY-MM-DD)")),
+		mcp.WithString("end_date", mcp.Required(), mcp.Description("End date for analysis (YYYY-MM-DD)")),
+		mcp.WithString("customer_id", mcp.Description("Customer ID for historical data (optional, uses authenticated user if not provided)")),
+		mcp.WithString("analysis_types", mcp.Description("Comma-separated analysis types: bundling,volume,loyalty,comprehensive (default: comprehensive)")),
+		mcp.WithString("include_recommendations", mcp.Description("Include actionable recommendations (default: true)")),
+	)
+
+	srv.AddTool(historicalTool, s.analyzeHistoricalSavingsTool)
+
 	fmt.Fprintf(os.Stderr, "MCP server initialized and listening...\n")
 
 	if err := server.ServeStdio(srv); err != nil {

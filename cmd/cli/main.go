@@ -734,10 +734,10 @@ func handleConversationalPricing() {
 	fmt.Println("Type 'quit' to exit, 'help' for examples.")
 	fmt.Println("")
 
-	// Create Claude-powered conversation engine
+	// Create AI Hub-powered conversation engine with rule-based fallback
 	engine, err := conversation.NewClaudeConversationEngine()
 	if err != nil {
-		fmt.Printf("⚠️  Claude not available, using rule-based engine: %v\n", err)
+		fmt.Printf("⚠️  Conversation engine error: %v\n", err)
 	}
 	var context *conversation.ConversationContext
 
@@ -782,8 +782,9 @@ func handleConversationalPricing() {
 		// Update context
 		context = response.UpdatedContext
 
-		// Display response
-		fmt.Printf("🤖 Advisor: %s\n", response.Message)
+		// Display response with markdown formatting removed
+		cleanMessage := removeMarkdownFormatting(response.Message)
+		fmt.Printf("🤖 Advisor: %s\n", cleanMessage)
 
 		// Show recommendations if available
 		if len(response.Recommendations) > 0 {
@@ -843,6 +844,33 @@ func showConversationalHelp() {
 
 func stringPtr(s string) *string {
 	return &s
+}
+
+// removeMarkdownFormatting removes markdown formatting from text for CLI display
+func removeMarkdownFormatting(text string) string {
+	// Remove bold formatting (**text** -> text)
+	text = strings.ReplaceAll(text, "**", "")
+
+	// Remove italic formatting (*text* -> text)
+	text = strings.ReplaceAll(text, "*", "")
+
+	// Remove code formatting (`text` -> text)
+	text = strings.ReplaceAll(text, "`", "")
+
+	// Remove headers (# ## ### -> empty)
+	lines := strings.Split(text, "\n")
+	var cleanLines []string
+	for _, line := range lines {
+		// Remove header markers but keep the text
+		line = strings.TrimPrefix(line, "#")
+		line = strings.TrimPrefix(line, "##")
+		line = strings.TrimPrefix(line, "###")
+		line = strings.TrimPrefix(line, "####")
+		line = strings.TrimSpace(line)
+		cleanLines = append(cleanLines, line)
+	}
+
+	return strings.Join(cleanLines, "\n")
 }
 
 // showThinkingIndicator displays a thinking animation while waiting for Claude's response

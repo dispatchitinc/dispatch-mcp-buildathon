@@ -2,12 +2,13 @@
 
 ## Overview
 
-The Dispatch MCP Server provides four main tools for delivery and pricing operations:
+The Dispatch MCP Server provides five main tools for delivery and pricing operations:
 
-1. **`create_estimate`** - Create cost estimates for delivery orders
-2. **`create_order`** - Create new delivery orders
-3. **`compare_pricing_models`** - Compare different pricing models against estimates
-4. **`select_delivery_option`** - Select appropriate delivery option based on customer scenario
+1. **`analyze_historical_savings`** - Analyze historical orders to show potential savings from different pricing strategies
+2. **`create_estimate`** - Create cost estimates for delivery orders
+3. **`create_order`** - Create new delivery orders
+4. **`compare_pricing_models`** - Compare different pricing models against estimates
+5. **`select_delivery_option`** - Select appropriate delivery option based on customer scenario
 
 ## 🚚 Delivery Scenarios
 
@@ -34,6 +35,117 @@ The API returns multiple delivery options sorted by speed and cost:
 This design allows customers to choose between speed and cost based on their specific needs.
 
 ## 🔧 Tool Reference
+
+### analyze_historical_savings
+
+Analyzes historical orders to show potential savings from different pricing strategies. This tool helps customers understand how they could optimize their delivery patterns for maximum cost savings.
+
+#### Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `start_date` | string | ✅ | Start date for analysis (YYYY-MM-DD format) |
+| `end_date` | string | ✅ | End date for analysis (YYYY-MM-DD format) |
+| `customer_id` | string | ❌ | Customer ID for historical data (uses authenticated user if not provided) |
+| `analysis_types` | string | ❌ | Comma-separated analysis types: `bundling`, `volume`, `loyalty`, `comprehensive` (default: `comprehensive`) |
+| `include_recommendations` | string | ❌ | Include actionable recommendations (default: `true`) |
+
+#### Analysis Types
+
+- **`bundling`**: Analyzes how individual orders could be combined for Multi-Delivery discounts
+- **`volume`**: Analyzes how increasing order frequency could unlock Volume discounts
+- **`loyalty`**: Analyzes how reaching higher loyalty tiers could unlock Loyalty discounts
+- **`comprehensive`**: Combines all analysis types for complete optimization strategy
+
+#### Example Usage
+
+```json
+{
+  "tool": "analyze_historical_savings",
+  "arguments": {
+    "start_date": "2024-01-01",
+    "end_date": "2024-03-31",
+    "analysis_types": "bundling,volume,loyalty",
+    "include_recommendations": "true"
+  }
+}
+```
+
+#### Response Format
+
+```json
+{
+  "status": "success",
+  "message": "Historical analysis completed",
+  "analysis_request": {
+    "start_date": "2024-01-01T00:00:00Z",
+    "end_date": "2024-03-31T00:00:00Z",
+    "analysis_types": ["bundling", "volume", "loyalty"],
+    "include_recommendations": true
+  },
+  "comprehensive_analysis": {
+    "analysis_period": {
+      "start_date": "2024-01-01T00:00:00Z",
+      "end_date": "2024-03-31T00:00:00Z"
+    },
+    "total_orders": 47,
+    "total_deliveries": 89,
+    "current_total_cost": 12500.00,
+    "bundling_analysis": {
+      "current_orders": 47,
+      "optimized_orders": 23,
+      "potential_savings": 2340.00,
+      "savings_percentage": 18.5,
+      "recommendations": [
+        "Bundle orders by pickup location and delivery date",
+        "Combine 2-3 individual orders into single bundled orders"
+      ]
+    },
+    "volume_analysis": {
+      "current_frequency": 15,
+      "target_frequency": 20,
+      "potential_savings": 1890.00,
+      "savings_percentage": 15.2,
+      "recommendations": [
+        "Increase order frequency to 20+ orders/month",
+        "Plan regular delivery schedules"
+      ]
+    },
+    "loyalty_analysis": {
+      "current_tier": "silver",
+      "target_tier": "gold",
+      "potential_savings": 1120.00,
+      "savings_percentage": 9.0,
+      "recommendations": [
+        "Maintain consistent ordering to reach gold tier",
+        "Focus on long-term customer relationship"
+      ]
+    },
+    "combined_savings": 5350.00,
+    "combined_savings_percentage": 42.7,
+    "implementation_timeline": "3-6 months",
+    "roi": 340.0,
+    "recommendations": [
+      "Implement bundling strategy immediately",
+      "Increase order frequency over next 3 months",
+      "Maintain consistent ordering for loyalty tier upgrade"
+    ]
+  }
+}
+```
+
+#### Status
+
+**Under Development**: This tool is currently in development and returns placeholder responses. The following features are planned:
+
+- Historical order data retrieval from Dispatch API
+- Bundling analysis algorithms
+- Volume discount analysis
+- Loyalty tier analysis
+- Comprehensive report generation
+- Actionable recommendations
+- ROI calculations
+- Implementation timelines
 
 ### create_estimate
 

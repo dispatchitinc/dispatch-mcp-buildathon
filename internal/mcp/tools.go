@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"context"
+	"dispatch-mcp-server/internal/analysis"
 	"dispatch-mcp-server/internal/conversation"
 	"dispatch-mcp-server/internal/dispatch"
 	"dispatch-mcp-server/internal/pricing"
@@ -9,6 +10,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/mark3labs/mcp-go/mcp"
 )
@@ -402,6 +405,74 @@ func (s *MCPServer) conversationalPricingAdvisorTool(ctx context.Context, reques
 	response, err := s.conversationEngine.ProcessMessage(userMessage, conversationContext)
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("failed to process message: %v", err)), nil
+	}
+
+	// Format response
+	responseJSON, _ := json.MarshalIndent(response, "", "  ")
+	return mcp.NewToolResultText(string(responseJSON)), nil
+}
+
+func (s *MCPServer) analyzeHistoricalSavingsTool(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	// Cast arguments to the correct type
+	arguments, ok := request.Params.Arguments.(map[string]interface{})
+	if !ok {
+		return mcp.NewToolResultError("invalid arguments format"), nil
+	}
+
+	// Parse required parameters
+	startDateStr, ok := arguments["start_date"].(string)
+	if !ok || startDateStr == "" {
+		return mcp.NewToolResultError("start_date is required and must be a string (YYYY-MM-DD)"), nil
+	}
+
+	endDateStr, ok := arguments["end_date"].(string)
+	if !ok || endDateStr == "" {
+		return mcp.NewToolResultError("end_date is required and must be a string (YYYY-MM-DD)"), nil
+	}
+
+	// Parse dates
+	startDate, err := time.Parse("2006-01-02", startDateStr)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("invalid start_date format: %v", err)), nil
+	}
+
+	endDate, err := time.Parse("2006-01-02", endDateStr)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("invalid end_date format: %v", err)), nil
+	}
+
+	// Parse optional parameters
+	customerID := getStringArg(arguments, "customer_id")
+	analysisTypesStr := getStringArg(arguments, "analysis_types")
+	if analysisTypesStr == "" {
+		analysisTypesStr = "comprehensive"
+	}
+
+	includeRecommendations := getStringArg(arguments, "include_recommendations")
+	if includeRecommendations == "" {
+		includeRecommendations = "true"
+	}
+
+	// Parse analysis types
+	analysisTypes := strings.Split(analysisTypesStr, ",")
+	for i, t := range analysisTypes {
+		analysisTypes[i] = strings.TrimSpace(t)
+	}
+
+	// Create analysis request
+	analysisRequest := analysis.AnalysisRequest{
+		StartDate:              startDate,
+		EndDate:                endDate,
+		CustomerID:             customerID,
+		AnalysisTypes:          analysisTypes,
+		IncludeRecommendations: includeRecommendations == "true",
+	}
+
+	// Create analysis engine and perform analysis
+	analysisEngine := analysis.NewAnalysisEngine()
+	response, err := analysisEngine.AnalyzeHistoricalSavings(analysisRequest)
+	if err != nil {
+		return mcp.NewToolResultError(fmt.Sprintf("analysis failed: %v", err)), nil
 	}
 
 	// Format response

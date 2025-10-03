@@ -81,7 +81,13 @@ func main() {
 	var err error
 	engine, err = conversation.NewClaudeConversationEngine()
 	if err != nil {
-		log.Printf("⚠️  Claude not available, using rule-based engine: %v", err)
+		log.Printf("⚠️  Conversation engine error: %v", err)
+	} else {
+		if engine.IsClaudeAvailable() {
+			log.Printf("✅ Using AI Hub engine")
+		} else {
+			log.Printf("⚠️ Using rule-based engine (AI Hub unavailable)")
+		}
 	}
 
 	// Set up routes
@@ -167,12 +173,30 @@ func handleChat(w http.ResponseWriter, r *http.Request) {
 	}
 	session.Messages = append(session.Messages, userMessage)
 
-	// Process message with conversation engine
-	response, err := engine.ProcessMessage(request.Message, session.Context)
+	// Debug: Log the message and context
+	log.Printf("🔍 Processing message: '%s'", request.Message)
+	log.Printf("🔍 Session context before: %+v", session.Context)
+
+	// Convert session messages to conversation history
+	history := make([]conversation.ConversationMessage, 0, len(session.Messages))
+	for _, msg := range session.Messages {
+		history = append(history, conversation.ConversationMessage{
+			Role:    msg.Type,
+			Content: msg.Content,
+		})
+	}
+
+	// Process message with conversation engine and history
+	response, err := engine.ProcessMessageWithHistory(request.Message, session.Context, history)
 	if err != nil {
+		log.Printf("❌ Error processing message: %v", err)
 		http.Error(w, fmt.Sprintf("Error processing message: %v", err), http.StatusInternalServerError)
 		return
 	}
+
+	// Debug: Log the response
+	log.Printf("🔍 Response message: '%s'", response.Message)
+	log.Printf("🔍 Updated context: %+v", response.UpdatedContext)
 
 	// Update session context
 	session.Context = response.UpdatedContext

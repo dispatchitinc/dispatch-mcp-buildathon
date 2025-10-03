@@ -58,14 +58,109 @@ type ConversationContext struct {
 // OrderCreationState tracks the progress of order creation
 type OrderCreationState struct {
 	InProgress           bool                                   `json:"in_progress"`
-	Step                 string                                 `json:"step"`             // "pickup", "deliveries", "contact", "review"
-	CurrentQuestion      string                                 `json:"current_question"` // "pickup_business", "pickup_address", "pickup_contact", "pickup_phone", etc.
+	Step                 string                                 `json:"step"`                 // "multi_stop", "pickup", "drop_off", "packages", "organization", "service_level", "vehicle", "add_ons", "delivery", "billing", "special_requirements", "review"
+	CurrentQuestion      string                                 `json:"current_question"`     // "pickup_business", "pickup_address", "pickup_contact", "pickup_phone", etc.
+	MultiStop            bool                                   `json:"multi_stop,omitempty"` // Whether this is a multi-stop delivery
 	PickupInfo           *dispatch.CreateOrderPickupInfoInput   `json:"pickup_info,omitempty"`
 	DropOffs             []dispatch.CreateOrderDropOffInfoInput `json:"drop_offs,omitempty"`
+	VehicleType          *VehicleTypeInfo                       `json:"vehicle_type,omitempty"`
+	Capabilities         []string                               `json:"capabilities,omitempty"`
 	DeliveryInfo         *dispatch.DeliveryInfoInput            `json:"delivery_info,omitempty"`
+	SchedulingInfo       *SchedulingInfo                        `json:"scheduling_info,omitempty"`
+	
+	// NEW: Package Details
+	PackageDetails       *PackageDetailsInfo                    `json:"package_details,omitempty"`
+	
+	// NEW: Organization Context
+	OrganizationInfo     *OrganizationInfo                      `json:"organization_info,omitempty"`
+	
+	// NEW: Service Level
+	ServiceLevel         *ServiceLevelInfo                      `json:"service_level,omitempty"`
+	
+	// NEW: Billing Information
+	BillingInfo          *BillingInfo                           `json:"billing_info,omitempty"`
+	
+	// NEW: Special Requirements
+	SpecialRequirements  *SpecialRequirementsInfo              `json:"special_requirements,omitempty"`
+	
 	MissingFields        []string                               `json:"missing_fields"`
 	CompletedFields      []string                               `json:"completed_fields"`
-	CurrentDeliveryIndex int                                    `json:"current_delivery_index"` // Which delivery we're collecting info for
+	CurrentDeliveryIndex int                                    `json:"current_delivery_index"`      // Which delivery we're collecting info for
+	ValidationErrors     []string                               `json:"validation_errors,omitempty"` // Address validation errors
+}
+
+// VehicleTypeInfo represents vehicle type selection
+type VehicleTypeInfo struct {
+	VehicleTypeID   string   `json:"vehicle_type_id"`
+	VehicleTypeName string   `json:"vehicle_type_name"`
+	CustomTypes     []string `json:"custom_types,omitempty"`
+}
+
+// SchedulingInfo represents delivery scheduling information
+type SchedulingInfo struct {
+	PickupTime    string   `json:"pickup_time"`
+	DeliveryTime  string   `json:"delivery_time"`
+	PickupDate    string   `json:"pickup_date"`
+	DeliveryDate  string   `json:"delivery_date"`
+	TimeZone      string   `json:"time_zone"`
+	SpecialTiming []string `json:"special_timing,omitempty"`
+}
+
+// PackageDetailsInfo represents package information
+type PackageDetailsInfo struct {
+	PackageCount      int       `json:"package_count"`
+	TotalWeight       float64   `json:"total_weight"`
+	IndividualWeights []float64 `json:"individual_weights,omitempty"`
+	ReferenceNames    []string  `json:"reference_names,omitempty"`
+	SpecialHandling   []string  `json:"special_handling,omitempty"`
+	Dimensions        *PackageDimensions `json:"dimensions,omitempty"`
+}
+
+// PackageDimensions represents package dimensions
+type PackageDimensions struct {
+	Length float64 `json:"length"`
+	Width  float64 `json:"width"`
+	Height float64 `json:"height"`
+	Unit   string  `json:"unit"` // "inches", "cm"
+}
+
+// OrganizationInfo represents organization context
+type OrganizationInfo struct {
+	OrganizationID     string `json:"organization_id"`
+	OrganizationName   string `json:"organization_name"`
+	BranchID          string `json:"branch_id,omitempty"`
+	BranchName        string `json:"branch_name,omitempty"`
+	MarketID          string `json:"market_id,omitempty"`
+	MarketName        string `json:"market_name,omitempty"`
+	CreatedByUserID   string `json:"created_by_user_id"`
+	CreatedByUserName string `json:"created_by_user_name"`
+	CreatedByUserEmail string `json:"created_by_user_email"`
+}
+
+// ServiceLevelInfo represents service level selection
+type ServiceLevelInfo struct {
+	ServiceLevel       string   `json:"service_level"` // "standard", "express", "rush", "scheduled"
+	DeliveryTimeWindow string   `json:"delivery_time_window,omitempty"`
+	UrgencyLevel       string   `json:"urgency_level"` // "asap", "scheduled", "flexible"
+	SpecialServices    []string `json:"special_services,omitempty"`
+}
+
+// BillingInfo represents billing information
+type BillingInfo struct {
+	BillingMethod     string        `json:"billing_method"` // "account", "credit_card", "invoice", "cod"
+	BillingAddress    *AddressInput `json:"billing_address,omitempty"`
+	PaymentTerms      string        `json:"payment_terms,omitempty"`
+	ContactEmail      string        `json:"contact_email"`
+	NotificationPhone string        `json:"notification_phone,omitempty"`
+}
+
+// SpecialRequirementsInfo represents special delivery requirements
+type SpecialRequirementsInfo struct {
+	UnloadingAssistance  bool   `json:"unloading_assistance"`
+	DedicatedVehicle     bool   `json:"dedicated_vehicle"`
+	DeliveryInstructions string `json:"delivery_instructions,omitempty"`
+	AccessInstructions   string `json:"access_instructions,omitempty"`
+	SpecialNotes         string `json:"special_notes,omitempty"`
 }
 
 // CustomerProfile represents customer information
@@ -199,9 +294,13 @@ func (ce *ConversationEngine) extractIntent(message string) *Intent {
 func (ce *ConversationEngine) extractEntities(message string) map[string]string {
 	entities := make(map[string]string)
 
-	// Extract delivery count
-	if count := ce.extractNumber(message, "deliver"); count > 0 {
-		entities["delivery_count"] = fmt.Sprintf("%d", count)
+	// Extract delivery count - check multiple keywords
+	deliveryKeywords := []string{"deliver", "delivery", "deliveries", "package", "packages", "shipment", "shipments"}
+	for _, keyword := range deliveryKeywords {
+		if count := ce.extractNumber(message, keyword); count > 0 {
+			entities["delivery_count"] = fmt.Sprintf("%d", count)
+			break
+		}
 	}
 
 	// Extract customer tier

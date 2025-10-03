@@ -61,6 +61,9 @@ func (cm *ContextManager) updateFromIntent(context *ConversationContext, intent 
 	// Update delivery requirements
 	if count, exists := intent.Entities["delivery_count"]; exists {
 		if countInt, err := fmt.Sscanf(count, "%d", new(int)); err == nil {
+			// Update current delivery count in customer profile
+			context.CustomerProfile.CurrentDeliveryCount = countInt
+			
 			deliveryReq := DeliveryRequirement{
 				Count:       countInt,
 				VehicleType: context.CustomerProfile.PreferredVehicle,
