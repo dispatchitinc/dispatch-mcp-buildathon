@@ -1,0 +1,30 @@
+{
+  "name": "NYC Manhattan Delivery",
+  "description": "Sample delivery within Manhattan",
+  "pickup": {
+    "business_name": "Wall Street Office",
+    "contact_name": "Carol Davis",
+    "contact_phone": "555-234-5678",
+    "address": {
+      "street": "100 Wall St",
+      "city": "New York",
+      "state": "NY",
+      "zip_code": "10005",
+      "country": "US"
+    }
+  },
+  "dropoff": {
+    "business_name": "Midtown Office",
+    "contact_name": "David Wilson",
+    "contact_phone": "555-345-6789",
+    "address": {
+      "street": "350 5th Ave",
+      "city": "New York",
+      "state": "NY",
+      "zip_code": "10118",
+      "country": "US"
+    }
+  },
+  "vehicle_type": "cargo_van",
+  "service_type": "delivery"
+}

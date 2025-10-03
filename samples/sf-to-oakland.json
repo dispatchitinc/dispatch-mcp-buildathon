@@ -1,0 +1,30 @@
+{
+  "name": "San Francisco to Oakland Delivery",
+  "description": "Sample delivery from SF Financial District to Oakland",
+  "pickup": {
+    "business_name": "Tech Startup Inc",
+    "contact_name": "Alice Johnson",
+    "contact_phone": "555-123-4567",
+    "address": {
+      "street": "1 Market St",
+      "city": "San Francisco",
+      "state": "CA",
+      "zip_code": "94105",
+      "country": "US"
+    }
+  },
+  "dropoff": {
+    "business_name": "Oakland Office",
+    "contact_name": "Bob Smith",
+    "contact_phone": "555-987-6543",
+    "address": {
+      "street": "123 Broadway",
+      "city": "Oakland",
+      "state": "CA",
+      "zip_code": "94612",
+      "country": "US"
+    }
+  },
+  "vehicle_type": "cargo_van",
+  "service_type": "delivery"
+}
