@@ -11,6 +11,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 )
 
 func main() {
@@ -762,8 +763,16 @@ func handleConversationalPricing() {
 			continue
 		}
 
+		// Show thinking indicator while processing
+		thinkingDone := make(chan bool)
+		go showThinkingIndicator(thinkingDone)
+
 		// Process the message
 		response, err := engine.ProcessMessage(userInput, context)
+
+		// Stop thinking indicator
+		thinkingDone <- true
+
 		if err != nil {
 			fmt.Printf("❌ Error: %v\n", err)
 			fmt.Print("💬 You: ")
@@ -834,4 +843,23 @@ func showConversationalHelp() {
 
 func stringPtr(s string) *string {
 	return &s
+}
+
+// showThinkingIndicator displays a thinking animation while waiting for Claude's response
+func showThinkingIndicator(done chan bool) {
+	thinkingChars := []string{"🤔", "💭", "🧠", "⚡"}
+	i := 0
+
+	for {
+		select {
+		case <-done:
+			// Clear the thinking indicator
+			fmt.Print("\r\033[K")
+			return
+		default:
+			fmt.Printf("\r🤖 Thinking %s", thinkingChars[i%len(thinkingChars)])
+			time.Sleep(300 * time.Millisecond)
+			i++
+		}
+	}
 }

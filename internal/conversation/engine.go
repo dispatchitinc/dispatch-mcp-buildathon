@@ -52,15 +52,30 @@ type ConversationContext struct {
 	PricingHistory  []PricingComparison   `json:"pricing_history"`
 	CurrentGoal     string                `json:"current_goal"`
 	Preferences     CustomerPreferences   `json:"preferences"`
+	OrderCreation   OrderCreationState    `json:"order_creation"`
+}
+
+// OrderCreationState tracks the progress of order creation
+type OrderCreationState struct {
+	InProgress           bool                                   `json:"in_progress"`
+	Step                 string                                 `json:"step"`             // "pickup", "deliveries", "contact", "review"
+	CurrentQuestion      string                                 `json:"current_question"` // "pickup_business", "pickup_address", "pickup_contact", "pickup_phone", etc.
+	PickupInfo           *dispatch.CreateOrderPickupInfoInput   `json:"pickup_info,omitempty"`
+	DropOffs             []dispatch.CreateOrderDropOffInfoInput `json:"drop_offs,omitempty"`
+	DeliveryInfo         *dispatch.DeliveryInfoInput            `json:"delivery_info,omitempty"`
+	MissingFields        []string                               `json:"missing_fields"`
+	CompletedFields      []string                               `json:"completed_fields"`
+	CurrentDeliveryIndex int                                    `json:"current_delivery_index"` // Which delivery we're collecting info for
 }
 
 // CustomerProfile represents customer information
 type CustomerProfile struct {
-	Tier              string   `json:"tier"`
-	OrderFrequency    int      `json:"order_frequency"`
-	AverageOrderValue float64  `json:"average_order_value"`
-	PreferredVehicle  string   `json:"preferred_vehicle"`
-	SpecialNeeds      []string `json:"special_needs"`
+	Tier                 string   `json:"tier"`
+	OrderFrequency       int      `json:"order_frequency"`
+	CurrentDeliveryCount int      `json:"current_delivery_count"` // Current order delivery count
+	AverageOrderValue    float64  `json:"average_order_value"`
+	PreferredVehicle     string   `json:"preferred_vehicle"`
+	SpecialNeeds         []string `json:"special_needs"`
 }
 
 // DeliveryRequirement represents a delivery need

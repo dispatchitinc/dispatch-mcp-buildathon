@@ -61,14 +61,20 @@ func (ce *ClaudeConversationEngine) ProcessMessage(message string, context *Conv
 		responseText = claudeResponse.Content[0].Text
 	}
 
-	// Generate pricing recommendations using our pricing engine
-	recommendations := ce.generateRecommendations(context)
-
-	// Generate next questions based on context
-	nextQuestions := ce.generateNextQuestions(context)
-
-	// Update context with new information from the message
+	// Update context with new information from the message first
 	updatedContext := ce.updateContextFromMessage(message, context)
+
+	// Generate pricing recommendations using our pricing engine with updated context
+	recommendations := ce.generateRecommendations(updatedContext)
+
+	// Generate next questions based on updated context
+	nextQuestions := ce.generateNextQuestions(updatedContext)
+
+	// Debug: Print context information
+	fmt.Printf("DEBUG: Updated context - DeliveryCount: %d, Tier: %s, OrderFrequency: %d\n",
+		updatedContext.CustomerProfile.CurrentDeliveryCount,
+		updatedContext.CustomerProfile.Tier,
+		updatedContext.CustomerProfile.OrderFrequency)
 
 	return &ConversationResponse{
 		Message:         responseText,
@@ -90,19 +96,31 @@ func (ce *ClaudeConversationEngine) convertToPricingContext(context *Conversatio
 	if context == nil {
 		return &claude.PricingContext{
 			DeliveryCount:   1,
-			CustomerTier:     "bronze",
-			OrderFrequency:   1,
-			TotalOrderValue:  50.0,
-			IsBulkOrder:      false,
+			CustomerTier:    "bronze",
+			OrderFrequency:  1,
+			TotalOrderValue: 50.0,
+			IsBulkOrder:     false,
+			OrderCreation:   claude.OrderCreationState{},
 		}
 	}
 
 	return &claude.PricingContext{
-		DeliveryCount:   context.CustomerProfile.OrderFrequency,
+		DeliveryCount:   context.CustomerProfile.CurrentDeliveryCount,
 		CustomerTier:    context.CustomerProfile.Tier,
-		OrderFrequency:   context.CustomerProfile.OrderFrequency,
-		TotalOrderValue:  context.CustomerProfile.AverageOrderValue,
+		OrderFrequency:  context.CustomerProfile.OrderFrequency,
+		TotalOrderValue: context.CustomerProfile.AverageOrderValue,
 		IsBulkOrder:     false, // Can be enhanced based on conversation
+		OrderCreation: claude.OrderCreationState{
+			InProgress:           context.OrderCreation.InProgress,
+			Step:                 context.OrderCreation.Step,
+			CurrentQuestion:      context.OrderCreation.CurrentQuestion,
+			PickupInfo:           context.OrderCreation.PickupInfo,
+			DropOffs:             context.OrderCreation.DropOffs,
+			DeliveryInfo:         context.OrderCreation.DeliveryInfo,
+			MissingFields:        context.OrderCreation.MissingFields,
+			CompletedFields:      context.OrderCreation.CompletedFields,
+			CurrentDeliveryIndex: context.OrderCreation.CurrentDeliveryIndex,
+		},
 	}
 }
 
@@ -121,15 +139,69 @@ func (ce *ClaudeConversationEngine) updateContextFromMessage(message string, con
 	// Simple entity extraction for context updates
 	message = strings.ToLower(message)
 
-	// Extract delivery count
-	if strings.Contains(message, "deliver") {
-		// Simple extraction - can be enhanced
-		if strings.Contains(message, "3") {
-			context.CustomerProfile.OrderFrequency = 3
-		} else if strings.Contains(message, "5") {
-			context.CustomerProfile.OrderFrequency = 5
-		} else if strings.Contains(message, "10") {
-			context.CustomerProfile.OrderFrequency = 10
+	// Extract delivery count with more sophisticated parsing
+	// Look for delivery-related terms and numbers
+	deliveryTerms := []string{"deliver", "delivery", "deliveries", "package", "packages", "shipment", "shipments", "drop", "drops"}
+
+	for _, term := range deliveryTerms {
+		if strings.Contains(message, term) {
+			// Look for numbers in the message
+			words := strings.Fields(message)
+			for i, word := range words {
+				// Check if current word is a delivery term
+				if word == term || word == term+"s" {
+					// Check previous word for number
+					if i > 0 {
+						switch words[i-1] {
+						case "one", "1":
+							context.CustomerProfile.CurrentDeliveryCount = 1
+						case "two", "2":
+							context.CustomerProfile.CurrentDeliveryCount = 2
+						case "three", "3":
+							context.CustomerProfile.CurrentDeliveryCount = 3
+						case "four", "4":
+							context.CustomerProfile.CurrentDeliveryCount = 4
+						case "five", "5":
+							context.CustomerProfile.CurrentDeliveryCount = 5
+						case "six", "6":
+							context.CustomerProfile.CurrentDeliveryCount = 6
+						case "seven", "7":
+							context.CustomerProfile.CurrentDeliveryCount = 7
+						case "eight", "8":
+							context.CustomerProfile.CurrentDeliveryCount = 8
+						case "nine", "9":
+							context.CustomerProfile.CurrentDeliveryCount = 9
+						case "ten", "10":
+							context.CustomerProfile.CurrentDeliveryCount = 10
+						}
+					}
+					// Also check next word for number (e.g., "deliver 3 packages")
+					if i < len(words)-1 {
+						switch words[i+1] {
+						case "one", "1":
+							context.CustomerProfile.CurrentDeliveryCount = 1
+						case "two", "2":
+							context.CustomerProfile.CurrentDeliveryCount = 2
+						case "three", "3":
+							context.CustomerProfile.CurrentDeliveryCount = 3
+						case "four", "4":
+							context.CustomerProfile.CurrentDeliveryCount = 4
+						case "five", "5":
+							context.CustomerProfile.CurrentDeliveryCount = 5
+						case "six", "6":
+							context.CustomerProfile.CurrentDeliveryCount = 6
+						case "seven", "7":
+							context.CustomerProfile.CurrentDeliveryCount = 7
+						case "eight", "8":
+							context.CustomerProfile.CurrentDeliveryCount = 8
+						case "nine", "9":
+							context.CustomerProfile.CurrentDeliveryCount = 9
+						case "ten", "10":
+							context.CustomerProfile.CurrentDeliveryCount = 10
+						}
+					}
+				}
+			}
 		}
 	}
 
@@ -151,7 +223,101 @@ func (ce *ClaudeConversationEngine) updateContextFromMessage(message string, con
 		}
 	}
 
+	// Handle order creation progress
+	ce.updateOrderCreationProgress(message, context)
+
 	return context
+}
+
+// updateOrderCreationProgress handles step-by-step order creation
+func (ce *ClaudeConversationEngine) updateOrderCreationProgress(message string, context *ConversationContext) {
+	// Initialize order creation if not started
+	if !context.OrderCreation.InProgress {
+		// Check if user wants to create an order
+		if strings.Contains(message, "create") && strings.Contains(message, "order") {
+			context.OrderCreation.InProgress = true
+			context.OrderCreation.Step = "pickup"
+			context.OrderCreation.CurrentQuestion = "pickup_business"
+			context.OrderCreation.PickupInfo = &dispatch.CreateOrderPickupInfoInput{}
+			context.OrderCreation.DropOffs = []dispatch.CreateOrderDropOffInfoInput{}
+			context.OrderCreation.CompletedFields = []string{}
+			context.OrderCreation.MissingFields = []string{"pickup_business", "pickup_address", "pickup_contact", "pickup_phone"}
+		}
+		return
+	}
+
+	// Handle current question based on step and question
+	switch context.OrderCreation.Step {
+	case "pickup":
+		ce.handlePickupStep(message, context)
+	case "deliveries":
+		ce.handleDeliveriesStep(message, context)
+	case "review":
+		ce.handleReviewStep(message, context)
+	}
+}
+
+// handlePickupStep processes pickup information step by step
+func (ce *ClaudeConversationEngine) handlePickupStep(message string, context *ConversationContext) {
+	switch context.OrderCreation.CurrentQuestion {
+	case "pickup_business":
+		// Extract business name from message
+		if len(strings.TrimSpace(message)) > 0 {
+			context.OrderCreation.PickupInfo.BusinessName = &message
+			context.OrderCreation.CompletedFields = append(context.OrderCreation.CompletedFields, "pickup_business")
+			context.OrderCreation.CurrentQuestion = "pickup_address"
+		}
+	case "pickup_address":
+		// Extract address from message
+		if len(strings.TrimSpace(message)) > 0 {
+			// Parse address into components (simplified)
+			context.OrderCreation.PickupInfo.Location = &dispatch.LocationInput{
+				Address: &dispatch.AddressInput{
+					Street:  message,         // Simplified - would need better parsing
+					City:    "San Francisco", // Default - would extract from message
+					State:   "CA",
+					ZipCode: "94105",
+					Country: "US",
+				},
+			}
+			context.OrderCreation.CompletedFields = append(context.OrderCreation.CompletedFields, "pickup_address")
+			context.OrderCreation.CurrentQuestion = "pickup_contact"
+		}
+	case "pickup_contact":
+		// Extract contact name from message
+		if len(strings.TrimSpace(message)) > 0 {
+			context.OrderCreation.PickupInfo.ContactName = &message
+			context.OrderCreation.CompletedFields = append(context.OrderCreation.CompletedFields, "pickup_contact")
+			context.OrderCreation.CurrentQuestion = "pickup_phone"
+		}
+	case "pickup_phone":
+		// Extract phone number from message
+		if len(strings.TrimSpace(message)) > 0 {
+			context.OrderCreation.PickupInfo.ContactPhoneNumber = &message
+			context.OrderCreation.CompletedFields = append(context.OrderCreation.CompletedFields, "pickup_phone")
+			// Move to deliveries step
+			context.OrderCreation.Step = "deliveries"
+			context.OrderCreation.CurrentQuestion = "delivery_count"
+		}
+	}
+}
+
+// handleDeliveriesStep processes delivery information step by step
+func (ce *ClaudeConversationEngine) handleDeliveriesStep(message string, context *ConversationContext) {
+	// This would be implemented to handle delivery location collection
+	// For now, just move to review step
+	context.OrderCreation.Step = "review"
+	context.OrderCreation.CurrentQuestion = "confirm_order"
+}
+
+// handleReviewStep processes order review and confirmation
+func (ce *ClaudeConversationEngine) handleReviewStep(message string, context *ConversationContext) {
+	// Handle order confirmation
+	if strings.Contains(message, "confirm") || strings.Contains(message, "yes") {
+		// Order confirmed - would create the actual order here
+		context.OrderCreation.InProgress = false
+		context.OrderCreation.Step = "completed"
+	}
 }
 
 // generateRecommendations generates pricing recommendations using our pricing engine
@@ -162,10 +328,10 @@ func (ce *ClaudeConversationEngine) generateRecommendations(context *Conversatio
 
 	// Create pricing context for our engine
 	pricingContext := pricing.PricingContext{
-		DeliveryCount:   context.CustomerProfile.OrderFrequency,
+		DeliveryCount:   context.CustomerProfile.CurrentDeliveryCount,
 		CustomerTier:    context.CustomerProfile.Tier,
-		OrderFrequency:   context.CustomerProfile.OrderFrequency,
-		TotalOrderValue:  context.CustomerProfile.AverageOrderValue,
+		OrderFrequency:  context.CustomerProfile.OrderFrequency,
+		TotalOrderValue: context.CustomerProfile.AverageOrderValue,
 		IsBulkOrder:     false,
 	}
 
@@ -237,9 +403,9 @@ func (ce *ClaudeConversationEngine) IsClaudeAvailable() bool {
 // GetEngineInfo returns information about the engine
 func (ce *ClaudeConversationEngine) GetEngineInfo() map[string]interface{} {
 	info := map[string]interface{}{
-		"engine_type": "claude_hybrid",
+		"engine_type":      "claude_hybrid",
 		"claude_available": ce.IsClaudeAvailable(),
-		"fallback_mode": !ce.IsClaudeAvailable(),
+		"fallback_mode":    !ce.IsClaudeAvailable(),
 	}
 
 	if ce.IsClaudeAvailable() {

@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dispatch AI Chat - Order Creation Assistant</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 1rem 2rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .header h1 {
+            color: white;
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .header p {
+            color: rgba(255, 255, 255, 0.8);
+            margin-top: 0.25rem;
+        }
+
+        .main-container {
+            flex: 1;
+            display: flex;
+            max-width: 1400px;
+            margin: 0 auto;
+            width: 100%;
+            padding: 1rem;
+            gap: 1rem;
+        }
+
+        .chat-container {
+            flex: 1;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-header {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .chat-header h2 {
+            color: #495057;
+            font-size: 1.25rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .chat-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #6c757d;
+            font-size: 0.875rem;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #28a745;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 1rem;
+            overflow-y: auto;
+            max-height: 500px;
+        }
+
+        .message {
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+
+        .message.user {
+            flex-direction: row-reverse;
+        }
+
+        .message-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.875rem;
+            flex-shrink: 0;
+        }
+
+        .message.user .message-avatar {
+            background: #007bff;
+            color: white;
+        }
+
+        .message.assistant .message-avatar {
+            background: #6c757d;
+            color: white;
+        }
+
+        .message-content {
+            max-width: 70%;
+            padding: 0.75rem 1rem;
+            border-radius: 12px;
+            line-height: 1.5;
+        }
+
+        .message.user .message-content {
+            background: #007bff;
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.assistant .message-content {
+            background: #f8f9fa;
+            color: #495057;
+            border: 1px solid #e9ecef;
+            border-bottom-left-radius: 4px;
+        }
+
+        .message-time {
+            font-size: 0.75rem;
+            color: #6c757d;
+            margin-top: 0.25rem;
+        }
+
+        .chat-input {
+            padding: 1rem;
+            border-top: 1px solid #e9ecef;
+            background: #f8f9fa;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .input-group input {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            border: 1px solid #ced4da;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            outline: none;
+            transition: border-color 0.15s ease-in-out;
+        }
+
+        .input-group input:focus {
+            border-color: #007bff;
+            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        }
+
+        .input-group button {
+            padding: 0.75rem 1.5rem;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.15s ease-in-out;
+        }
+
+        .input-group button:hover {
+            background: #0056b3;
+        }
+
+        .input-group button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+
+        .sidebar {
+            width: 350px;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .info-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .info-card-header {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .info-card-header h3 {
+            color: #495057;
+            font-size: 1.125rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .info-card-content {
+            padding: 1rem;
+        }
+
+        .order-step {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #f1f3f4;
+        }
+
+        .order-step:last-child {
+            border-bottom: none;
+        }
+
+        .step-indicator {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+
+        .step-indicator.completed {
+            background: #28a745;
+            color: white;
+        }
+
+        .step-indicator.current {
+            background: #007bff;
+            color: white;
+        }
+
+        .step-indicator.pending {
+            background: #e9ecef;
+            color: #6c757d;
+        }
+
+        .step-content {
+            flex: 1;
+        }
+
+        .step-title {
+            font-weight: 500;
+            color: #495057;
+            margin-bottom: 0.25rem;
+        }
+
+        .step-description {
+            font-size: 0.875rem;
+            color: #6c757d;
+        }
+
+        .pricing-option {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #f1f3f4;
+        }
+
+        .pricing-option:last-child {
+            border-bottom: none;
+        }
+
+        .pricing-option.eligible {
+            background: #d4edda;
+            margin: 0 -1rem;
+            padding: 0.75rem 1rem;
+            border-radius: 6px;
+        }
+
+        .pricing-name {
+            font-weight: 500;
+            color: #495057;
+        }
+
+        .pricing-savings {
+            font-weight: 600;
+            color: #28a745;
+        }
+
+        .pricing-savings.negative {
+            color: #dc3545;
+        }
+
+        .thinking {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #6c757d;
+            font-style: italic;
+        }
+
+        .thinking-dots {
+            display: flex;
+            gap: 2px;
+        }
+
+        .thinking-dot {
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: #6c757d;
+            animation: thinking 1.4s infinite ease-in-out;
+        }
+
+        .thinking-dot:nth-child(1) { animation-delay: -0.32s; }
+        .thinking-dot:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes thinking {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+
+        .empty-state {
+            text-align: center;
+            color: #6c757d;
+            padding: 2rem;
+        }
+
+        .empty-state h3 {
+            margin-bottom: 0.5rem;
+            color: #495057;
+        }
+
+        @media (max-width: 768px) {
+            .main-container {
+                flex-direction: column;
+                padding: 0.5rem;
+            }
+
+            .sidebar {
+                width: 100%;
+            }
+
+            .message-content {
+                max-width: 85%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚀 Dispatch AI Chat</h1>
+        <p>Intelligent order creation assistant with real-time pricing optimization</p>
+    </div>
+
+    <div class="main-container">
+        <div class="chat-container">
+            <div class="chat-header">
+                <h2>💬 Chat with Dispatch AI</h2>
+                <div class="chat-status">
+                    <div class="status-indicator"></div>
+                    <span>Connected to AI Hub</span>
+                </div>
+            </div>
+            <div class="chat-messages" id="chatMessages">
+                <div class="empty-state">
+                    <h3>👋 Welcome to Dispatch AI!</h3>
+                    <p>I'm here to help you create delivery orders and find the best pricing options.</p>
+                    <p>Try saying: "I need to create a delivery order"</p>
+                </div>
+            </div>
+            <div class="chat-input">
+                <div class="input-group">
+                    <input type="text" id="messageInput" placeholder="Type your message here..." autocomplete="off">
+                    <button id="sendButton" onclick="sendMessage()">Send</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="sidebar">
+            <div class="info-card">
+                <div class="info-card-header">
+                    <h3>📋 Order Progress</h3>
+                </div>
+                <div class="info-card-content" id="orderInfo">
+                    <div class="empty-state">
+                        <h3>No order in progress</h3>
+                        <p>Start a conversation to begin creating an order</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-card">
+                <div class="info-card-header">
+                    <h3>💰 Pricing Options</h3>
+                </div>
+                <div class="info-card-content" id="pricingInfo">
+                    <div class="empty-state">
+                        <h3>No pricing data</h3>
+                        <p>Pricing recommendations will appear here</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let sessionId = null;
+        let isThinking = false;
+
+        // Initialize session
+        async function initSession() {
+            try {
+                const response = await fetch('/api/session', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                });
+                const session = await response.json();
+                sessionId = session.id;
+                console.log('Session initialized:', sessionId);
+            } catch (error) {
+                console.error('Failed to initialize session:', error);
+            }
+        }
+
+        // Send message
+        async function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            
+            if (!message || isThinking) return;
+
+            // Clear input
+            input.value = '';
+
+            // Add user message to chat
+            addMessage('user', message);
+
+            // Show thinking indicator
+            showThinking();
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        session_id: sessionId,
+                        message: message,
+                    }),
+                });
+
+                const session = await response.json();
+                
+                // Hide thinking indicator
+                hideThinking();
+
+                // Add assistant response
+                const lastMessage = session.messages[session.messages.length - 1];
+                if (lastMessage.type === 'assistant') {
+                    addMessage('assistant', lastMessage.content);
+                }
+
+                // Update order and pricing info
+                updateOrderInfo(session.order_info);
+                updatePricingInfo(session.pricing_info);
+
+            } catch (error) {
+                console.error('Failed to send message:', error);
+                hideThinking();
+                addMessage('assistant', 'Sorry, I encountered an error. Please try again.');
+            }
+        }
+
+        // Add message to chat
+        function addMessage(type, content) {
+            const messagesContainer = document.getElementById('chatMessages');
+            
+            // Remove empty state if it exists
+            const emptyState = messagesContainer.querySelector('.empty-state');
+            if (emptyState) {
+                emptyState.remove();
+            }
+
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            avatar.textContent = type === 'user' ? 'U' : 'AI';
+            
+            const messageContent = document.createElement('div');
+            messageContent.className = 'message-content';
+            messageContent.textContent = content;
+            
+            const messageTime = document.createElement('div');
+            messageTime.className = 'message-time';
+            messageTime.textContent = new Date().toLocaleTimeString();
+            
+            messageContent.appendChild(messageTime);
+            messageDiv.appendChild(avatar);
+            messageDiv.appendChild(messageContent);
+            messagesContainer.appendChild(messageDiv);
+            
+            // Scroll to bottom
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        // Show thinking indicator
+        function showThinking() {
+            isThinking = true;
+            const messagesContainer = document.getElementById('chatMessages');
+            
+            const thinkingDiv = document.createElement('div');
+            thinkingDiv.className = 'message assistant';
+            thinkingDiv.id = 'thinkingMessage';
+            
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            avatar.textContent = 'AI';
+            
+            const thinkingContent = document.createElement('div');
+            thinkingContent.className = 'message-content thinking';
+            thinkingContent.innerHTML = `
+                <div class="thinking">
+                    <span>AI is thinking</span>
+                    <div class="thinking-dots">
+                        <div class="thinking-dot"></div>
+                        <div class="thinking-dot"></div>
+                        <div class="thinking-dot"></div>
+                    </div>
+                </div>
+            `;
+            
+            thinkingDiv.appendChild(avatar);
+            thinkingDiv.appendChild(thinkingContent);
+            messagesContainer.appendChild(thinkingDiv);
+            
+            // Scroll to bottom
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        // Hide thinking indicator
+        function hideThinking() {
+            isThinking = false;
+            const thinkingMessage = document.getElementById('thinkingMessage');
+            if (thinkingMessage) {
+                thinkingMessage.remove();
+            }
+        }
+
+        // Update order info
+        function updateOrderInfo(orderInfo) {
+            const orderContainer = document.getElementById('orderInfo');
+            
+            if (!orderInfo || !orderInfo.in_progress) {
+                orderContainer.innerHTML = `
+                    <div class="empty-state">
+                        <h3>No order in progress</h3>
+                        <p>Start a conversation to begin creating an order</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const steps = [
+                { key: 'pickup', title: 'Pickup Location', description: 'Business name, address, contact info' },
+                { key: 'deliveries', title: 'Delivery Locations', description: 'Each delivery address and contact' },
+                { key: 'review', title: 'Review & Confirm', description: 'Final order details and confirmation' }
+            ];
+
+            let stepsHtml = '';
+            steps.forEach((step, index) => {
+                let status = 'pending';
+                if (orderInfo.step === step.key) status = 'current';
+                if (index < steps.findIndex(s => s.key === orderInfo.step)) status = 'completed';
+
+                stepsHtml += `
+                    <div class="order-step">
+                        <div class="step-indicator ${status}">
+                            ${status === 'completed' ? '✓' : index + 1}
+                        </div>
+                        <div class="step-content">
+                            <div class="step-title">${step.title}</div>
+                            <div class="step-description">${step.description}</div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            orderContainer.innerHTML = `
+                <div>
+                    <div style="margin-bottom: 1rem;">
+                        <strong>Current Step:</strong> ${orderInfo.step}<br>
+                        <strong>Current Question:</strong> ${orderInfo.current_question || 'N/A'}
+                    </div>
+                    ${stepsHtml}
+                </div>
+            `;
+        }
+
+        // Update pricing info
+        function updatePricingInfo(pricingInfo) {
+            const pricingContainer = document.getElementById('pricingInfo');
+            
+            if (!pricingInfo || !pricingInfo.recommendations || pricingInfo.recommendations.length === 0) {
+                pricingContainer.innerHTML = `
+                    <div class="empty-state">
+                        <h3>No pricing data</h3>
+                        <p>Pricing recommendations will appear here</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let pricingHtml = '';
+            pricingInfo.recommendations.forEach(option => {
+                const savingsClass = option.savings > 0 ? 'pricing-savings' : 'pricing-savings negative';
+                const optionClass = option.eligible ? 'pricing-option eligible' : 'pricing-option';
+                
+                pricingHtml += `
+                    <div class="${optionClass}">
+                        <div class="pricing-name">${option.name}</div>
+                        <div class="${savingsClass}">
+                            ${option.savings > 0 ? `$${option.savings.toFixed(2)} (${option.savings_percent.toFixed(1)}%)` : 'Not eligible'}
+                        </div>
+                    </div>
+                `;
+            });
+
+            if (pricingInfo.best_option) {
+                pricingHtml = `
+                    <div style="background: #d4edda; padding: 0.75rem; border-radius: 6px; margin-bottom: 1rem;">
+                        <strong>🏆 Best Option:</strong> ${pricingInfo.best_option.name}<br>
+                        <strong>Total Savings:</strong> $${pricingInfo.total_savings.toFixed(2)}
+                    </div>
+                ` + pricingHtml;
+            }
+
+            pricingContainer.innerHTML = pricingHtml;
+        }
+
+        // Handle Enter key
+        document.getElementById('messageInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            initSession();
+        });
+    </script>
+</body>
+</html>

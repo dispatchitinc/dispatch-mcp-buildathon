@@ -78,6 +78,15 @@ func (s *MCPServer) Run() error {
 
 	srv.AddTool(pricingTool, s.comparePricingModelsTool)
 
+	// Register select delivery option tool
+	selectOptionTool := mcp.NewTool("select_delivery_option",
+		mcp.WithDescription("Select the appropriate delivery option based on customer scenario (fastest vs cheapest)"),
+		mcp.WithString("estimate_response", mcp.Required(), mcp.Description("Full estimate response from create_estimate tool")),
+		mcp.WithString("delivery_scenario", mcp.Required(), mcp.Description("Delivery scenario: 'fastest' for urgent delivery, 'cheapest' for economy delivery")),
+	)
+
+	srv.AddTool(selectOptionTool, s.selectDeliveryOptionTool)
+
 	// Register conversational pricing advisor tool
 	advisorTool := mcp.NewTool("conversational_pricing_advisor",
 		mcp.WithDescription("Get personalized pricing advice through natural conversation"),
